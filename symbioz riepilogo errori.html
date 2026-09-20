@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Renault Symbioz – Computer di Bordo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f5f4f0; color: #1a1a1a; font-size: 15px; line-height: 1.6; }
+
+  header { background: #1a1a1a; color: #fff; padding: 1.5rem 2rem; display: flex; align-items: center; gap: 1rem; }
+  header .logo { width: 36px; height: 36px; background: #ffcc00; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #1a1a1a; flex-shrink: 0; }
+  header h1 { font-size: 1.1rem; font-weight: 600; }
+  header p { font-size: 0.78rem; color: #aaa; margin-top: 1px; }
+
+  nav { background: #fff; border-bottom: 1px solid #e5e5e5; display: flex; padding: 0 2rem; gap: 0; overflow-x: auto; }
+  nav button { background: none; border: none; padding: 1rem 1.25rem; font-size: 0.85rem; cursor: pointer; color: #666; white-space: nowrap; border-bottom: 2px solid transparent; transition: all .2s; }
+  nav button.active { color: #1a1a1a; border-bottom-color: #ffcc00; font-weight: 600; }
+  nav button:hover:not(.active) { color: #1a1a1a; background: #f8f8f8; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* DASHBOARD */
+  .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .dash-card { background: #fff; border-radius: 12px; padding: 1.25rem; border: 1px solid #e5e5e5; }
+  .dash-card .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem; }
+  .dash-card .value { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .dash-card .sub { font-size: 0.78rem; color: #888; margin-top: .3rem; }
+  .dash-card.red .value { color: #c0392b; }
+  .dash-card.orange .value { color: #e67e22; }
+  .dash-card.blue .value { color: #2980b9; }
+  .dash-card.green .value { color: #27ae60; }
+
+  .indicator-row { display: flex; flex-direction: column; gap: .75rem; }
+  .ind { background: #fff; border-radius: 10px; border: 1px solid #e5e5e5; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; }
+  .ind .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .dot.red { background: #e74c3c; box-shadow: 0 0 8px #e74c3c55; }
+  .dot.orange { background: #e67e22; box-shadow: 0 0 8px #e67e2255; }
+  .dot.yellow { background: #f1c40f; box-shadow: 0 0 8px #f1c40f55; }
+  .dot.green { background: #2ecc71; box-shadow: 0 0 8px #2ecc7155; }
+  .dot.gray { background: #bbb; }
+  .ind .ind-label { font-weight: 600; font-size: .85rem; flex: 1; }
+  .ind .ind-desc { font-size: .78rem; color: #888; }
+  .ind .ind-action { font-size: .72rem; padding: .3rem .7rem; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+  .action-stop { background: #fdecea; color: #c0392b; }
+  .action-soon { background: #fef3e2; color: #c67c11; }
+  .action-ok { background: #e8f5e9; color: #1e7e34; }
+
+  /* RICERCA */
+  .search-box { position: relative; margin-bottom: 1.5rem; }
+  .search-box input { width: 100%; padding: .85rem 1rem .85rem 2.8rem; border: 1px solid #ddd; border-radius: 10px; font-size: .95rem; background: #fff; outline: none; transition: border .2s; }
+  .search-box input:focus { border-color: #ffcc00; box-shadow: 0 0 0 3px #ffcc0030; }
+  .search-box .icon { position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 1.1rem; }
+  .results-count { font-size: .8rem; color: #888; margin-bottom: 1rem; }
+
+  .msg-card { background: #fff; border-radius: 10px; border: 1px solid #e5e5e5; padding: 1.1rem 1.25rem; margin-bottom: .75rem; border-left: 4px solid #ddd; }
+  .msg-card.spia-rossa { border-left-color: #e74c3c; }
+  .msg-card.spia-arancione { border-left-color: #e67e22; }
+  .msg-card.spia-ibrido { border-left-color: #8e44ad; }
+  .msg-card.spia-tpms { border-left-color: #2980b9; }
+  .msg-card .msg-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .4rem; }
+  .msg-card .msg-name { font-weight: 700; font-size: .95rem; }
+  .badge { font-size: .68rem; padding: .2rem .6rem; border-radius: 20px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+  .badge-red { background: #fdecea; color: #c0392b; }
+  .badge-orange { background: #fef3e2; color: #c67c11; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+  .badge-blue { background: #e8f4fd; color: #1a6fa8; }
+  .msg-card .msg-meaning { font-size: .83rem; color: #555; margin-bottom: .5rem; }
+  .msg-card .msg-action { font-size: .78rem; font-weight: 600; color: #888; }
+  .msg-card.spia-rossa .msg-action { color: #c0392b; }
+  .msg-card.spia-arancione .msg-action { color: #c67c11; }
+  .no-results { text-align: center; padding: 3rem; color: #aaa; font-size: .95rem; }
+
+  /* PRESSIONI TPMS */
+  .tpms-section { background: #fff; border-radius: 12px; border: 1px solid #e5e5e5; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .tpms-section h3 { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+  .tpms-section h3 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .car-diagram { display: flex; flex-direction: column; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+  .car-axle { display: flex; gap: 3rem; align-items: center; }
+  .wheel { background: #1a1a1a; color: #ffcc00; border-radius: 10px; padding: .7rem 1.2rem; text-align: center; min-width: 90px; }
+  .wheel .pos { font-size: .7rem; color: #aaa; }
+  .wheel .pres { font-size: 1.1rem; font-weight: 700; }
+  .wheel .unit { font-size: .65rem; color: #aaa; }
+  .car-body { background: #f0f0f0; border-radius: 8px; padding: .5rem 2rem; font-size: .75rem; color: #888; }
+
+  .tpms-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .tpms-table th { text-align: left; padding: .6rem .8rem; background: #f8f8f8; color: #666; font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
+  .tpms-table td { padding: .65rem .8rem; border-top: 1px solid #f0f0f0; }
+  .tpms-table tr:hover td { background: #fafafa; }
+
+  .tpms-msg-row { display: flex; align-items: center; gap: .75rem; padding: .75rem; border-radius: 8px; margin-bottom: .5rem; border: 1px solid #e5e5e5; }
+  .tpms-msg-icon { font-size: 1.2rem; flex-shrink: 0; }
+  .tpms-msg-title { font-weight: 700; font-size: .85rem; }
+  .tpms-msg-desc { font-size: .78rem; color: #666; }
+
+  .reset-steps { counter-reset: step; display: flex; flex-direction: column; gap: .6rem; }
+  .step { display: flex; gap: .75rem; align-items: flex-start; padding: .8rem; background: #f8f8f8; border-radius: 8px; }
+  .step-num { background: #1a1a1a; color: #ffcc00; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .step-text { font-size: .85rem; line-height: 1.5; }
+
+  .alert-box { border-radius: 8px; padding: .9rem 1.1rem; margin-bottom: 1rem; font-size: .83rem; display: flex; gap: .6rem; align-items: flex-start; }
+  .alert-box.warning { background: #fef3e2; border: 1px solid #f9d48b; color: #7d4e00; }
+  .alert-box.info { background: #e8f4fd; border: 1px solid #9ed4f5; color: #0d4f7a; }
+  .alert-box.danger { background: #fdecea; border: 1px solid #f5aeaa; color: #8b1a1a; }
+
+  h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; color: #1a1a1a; }
+  h3 { font-size: .95rem; margin-bottom: .75rem; }
+  .section-block { margin-bottom: 2rem; }
+  hr { border: none; border-top: 1px solid #eee; margin: 1.5rem 0; }
+
+  @media (max-width: 600px) {
+    main { padding: 1rem; }
+    .dash-grid { grid-template-columns: 1fr 1fr; }
+    .car-axle { gap: 1.5rem; }
+    .wheel { min-width: 70px; padding: .6rem .8rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">R</div>
+  <div>
+    <h1>Renault Symbioz E-Tech</h1>
+    <p>Computer di bordo – Messaggi e diagnostica</p>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('dashboard')">&#9632; Dashboard</button>
+  <button onclick="switchTab('ricerca')">&#128269; Ricerca messaggi</button>
+  <button onclick="switchTab('tpms')">&#9711; TPMS &amp; Pressioni</button>
+  <button onclick="switchTab('riferimento')">&#9776; Riferimento completo</button>
+</nav>
+
+<main>
+
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="section active">
+  <div class="dash-grid">
+    <div class="dash-card red">
+      <div class="label">Allarmi critici</div>
+      <div class="value">6</div>
+      <div class="sub">Spia rossa — stop immediato</div>
+    </div>
+    <div class="dash-card orange">
+      <div class="label">Anomalie</div>
+      <div class="value">4</div>
+      <div class="sub">Spia arancione — guidare con cura</div>
+    </div>
+    <div class="dash-card blue">
+      <div class="label">Messaggi TPMS</div>
+      <div class="value">5</div>
+      <div class="sub">Pressione pneumatici</div>
+    </div>
+    <div class="dash-card" style="--val:8">
+      <div class="label">Ibrido E-Tech</div>
+      <div class="value" style="color:#8e44ad">8</div>
+      <div class="sub">Messaggi sistema ibrido</div>
+    </div>
+  </div>
+
+  <div class="section-block">
+    <h2>Stato spie attive</h2>
+    <div class="indicator-row">
+      <div class="ind">
+        <div class="dot red"></div>
+        <div>
+          <div class="ind-label">Spia rossa &#9632; — Allarme</div>
+          <div class="ind-desc">Stop immediato • motore spento • non riavviare</div>
+        </div>
+        <div class="ind-action action-stop">FERMATI</div>
+      </div>
+      <div class="ind">
+        <div class="dot orange"></div>
+        <div>
+          <div class="ind-label">Spia arancione &#9650; — Anomalia</div>
+          <div class="ind-desc">Recarsi al più presto dalla concessionaria</div>
+        </div>
+        <div class="ind-action action-soon">PRESTO</div>
+      </div>
+      <div class="ind">
+        <div class="dot yellow"></div>
+        <div>
+          <div class="ind-label">Spia gialla — Informazione</div>
+          <div class="ind-desc">Attenzione richiesta, guida possibile con cautela</div>
+        </div>
+        <div class="ind-action action-soon">ATTENZIONE</div>
+      </div>
+      <div class="ind">
+        <div class="dot green"></div>
+        <div>
+          <div class="ind-label">Spia verde — Confermato</div>
+          <div class="ind-desc">Sistema attivo e funzionante</div>
+        </div>
+        <div class="ind-action action-ok">OK</div>
+      </div>
+      <div class="ind">
+        <div class="dot gray"></div>
+        <div>
+          <div class="ind-label">Spia grigia — Inattivo</div>
+          <div class="ind-desc">Sensore senza dati / sistema non disponibile</div>
+        </div>
+        <div class="ind-action" style="background:#eee;color:#888">NESSUN DATO</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-box warning">
+    <span>&#9888;</span>
+    <div>I messaggi scompaiono premendo il tasto di selezione oppure automaticamente dopo pochi secondi, ma restano memorizzati nel <strong>giornale di bordo</strong>. La spia resta accesa fino alla risoluzione del problema.</div>
+  </div>
+</div>
+
+<!-- RICERCA -->
+<div id="tab-ricerca" class="section">
+  <div class="search-box">
+    <span class="icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Cerca messaggio, sistema o parola chiave..." oninput="filterMessages()">
+  </div>
+  <div class="results-count" id="resultsCount">23 messaggi totali</div>
+  <div id="msgList"></div>
+  <div class="no-results" id="noResults" style="display:none">Nessun messaggio trovato per questa ricerca.</div>
+</div>
+
+<!-- TPMS -->
+<div id="tab-tpms" class="section">
+
+  <div class="section-block">
+    <div class="tpms-section">
+      <h3><span class="dot blue" style="background:#2980b9;"></span> Pressioni di gonfiaggio</h3>
+      <p style="font-size:.83rem;color:#666;margin-bottom:1rem;">Verificare sempre l'etichetta sulla portiera lato guidatore — i valori qui sotto sono indicativi per il Symbioz E-Tech standard.</p>
+
+      <div class="car-diagram">
+        <div class="car-axle">
+          <div class="wheel">
+            <div class="pos">ANT SX</div>
+            <div class="pres">2.3</div>
+            <div class="unit">bar (vuoto)</div>
+          </div>
+          <div class="car-body">ANTERIORE</div>
+          <div class="wheel">
+            <div class="pos">ANT DX</div>
+            <div class="pres">2.3</div>
+            <div class="unit">bar (vuoto)</div>
+          </div>
+        </div>
+        <div style="width:2px;height:40px;background:#ddd;"></div>
+        <div class="car-axle">
+          <div class="wheel">
+            <div class="pos">POST SX</div>
+            <div class="pres">2.3</div>
+            <div class="unit">bar (vuoto)</div>
+          </div>
+          <div class="car-body">POSTERIORE</div>
+          <div class="wheel">
+            <div class="pos">POST DX</div>
+            <div class="pres">2.3</div>
+            <div class="unit">bar (vuoto)</div>
+          </div>
+        </div>
+      </div>
+
+      <table class="tpms-table">
+        <tr><th>Condizione</th><th>Anteriore</th><th>Posteriore</th><th>Note</th></tr>
+        <tr><td>Vuoto / normale</td><td>2.3 bar</td><td>2.3 bar</td><td>Valori standard</td></tr>
+        <tr><td>Carico / autostrada</td><td>2.5 bar</td><td>2.7 bar</td><td>+0.2 post a pieno carico</td></tr>
+        <tr><td>Gomme calde</td><td>+0.2/0.3 bar</td><td>+0.2/0.3 bar</td><td>Non sgonfiare mai a caldo</td></tr>
+        <tr><td>Traino rimorchio</td><td>+0.2 bar</td><td>+0.2 bar</td><td>Max 100 km/h</td></tr>
+      </table>
+      <p style="font-size:.75rem;color:#aaa;margin-top:.75rem;">&#9888; Riferirsi sempre all'etichetta sulla portiera guidatore per i valori esatti del proprio veicolo.</p>
+    </div>
+  </div>
+
+  <div class="section-block">
+    <div class="tpms-section">
+      <h3>&#128308; Messaggi TPMS e significato</h3>
+      <div class="tpms-msg-row" style="background:#fdecea;border-color:#f5aeaa;">
+        <div class="tpms-msg-icon">&#128308;</div>
+        <div>
+          <div class="tpms-msg-title">FORATURA</div>
+          <div class="tpms-msg-desc">Almeno una ruota è forata o gravemente sgonfia. Fermarsi in sicurezza, non superare 80 km/h, usare il kit di gonfiaggio. Spia rossa + segnale acustico.</div>
+        </div>
+      </div>
+      <div class="tpms-msg-row" style="background:#fef3e2;border-color:#f9d48b;">
+        <div class="tpms-msg-icon">&#128992;</div>
+        <div>
+          <div class="tpms-msg-title">Regolare pressione pneumatici</div>
+          <div class="tpms-msg-desc">Almeno uno pneumatico è sgonfio. Gonfiare tutte e 4 le ruote a freddo ai valori corretti, poi reinizializzare il sistema.</div>
+        </div>
+      </div>
+      <div class="tpms-msg-row" style="background:#f3e8ff;border-color:#d8b4fe;">
+        <div class="tpms-msg-icon">&#9888;</div>
+        <div>
+          <div class="tpms-msg-title">Sensori pneumatici — controllare</div>
+          <div class="tpms-msg-desc">Spia lampeggiante. Ruota di scorta montata oppure sensore guasto. Contattare la concessionaria.</div>
+        </div>
+      </div>
+      <div class="tpms-msg-row" style="background:#e8f4fd;border-color:#9ed4f5;">
+        <div class="tpms-msg-icon">&#128994;</div>
+        <div>
+          <div class="tpms-msg-title">Ref pressione in corso</div>
+          <div class="tpms-msg-desc">Reinizializzazione avviata. Il sistema imposta i nuovi valori di riferimento durante la guida (alcuni minuti).</div>
+        </div>
+      </div>
+      <div class="tpms-msg-row" style="background:#f8f8f8;border-color:#e5e5e5;">
+        <div class="tpms-msg-icon">&#9898;</div>
+        <div>
+          <div class="tpms-msg-title">TPMS indisponibile</div>
+          <div class="tpms-msg-desc">Ruota di scorta di dimensione diversa montata sul veicolo. Il sistema non può operare correttamente.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-block">
+    <div class="tpms-section">
+      <h3>&#128260; Procedura di reset (reinizializzazione)</h3>
+      <div class="alert-box info" style="margin-bottom:1rem;">
+        Eseguire sempre dopo gonfiaggio, sostituzione o rotazione delle ruote.
+      </div>
+      <div class="reset-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Gonfiare tutte e 4 le ruote ai valori corretti <strong>a freddo</strong> (auto ferma da almeno 2–3 ore)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Accendere il veicolo ma non avviare il motore (contatto inserito)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Dallo schermo <strong>openR link</strong> → menu Veicolo → <strong>Pressione pneumatici</strong></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Premere <strong>"Reimposta"</strong> → confermare con <strong>"Sì"</strong></div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-text">Partire e guidare alcuni minuti — la spia si spegne automaticamente al completamento</div>
+        </div>
+      </div>
+      <div class="alert-box warning" style="margin-top:1rem;">
+        <span>&#9888;</span>
+        <div>Se la spia si riaccende subito dopo il reset con gomme correttamente gonfiate, verificare la carica della batteria 12V ausiliaria — è la causa più comune di falsi allarmi TPMS sul Symbioz.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- RIFERIMENTO COMPLETO -->
+<div id="tab-riferimento" class="section">
+
+  <div class="section-block">
+    <h2>&#128308; Messaggi di allarme — Spia rossa</h2>
+    <div class="alert-box danger">
+      <span>&#9888;</span>
+      <strong>Stop immediato compatibilmente col traffico. Spegnere il motore, non riavviare. Contattare la concessionaria.</strong>
+    </div>
+    <table class="tpms-table" style="width:100%;margin-top:1rem;">
+      <tr><th style="width:35%">Messaggio</th><th>Significato</th><th style="width:22%">Azione</th></tr>
+      <tr><td><strong>"Rischio di anomalia motore"</strong></td><td>Guasto iniezione, surriscaldamento motore o problema grave</td><td style="color:#c0392b;font-weight:600;">Stop immediato</td></tr>
+      <tr><td><strong>"Guasto all'impianto freni"</strong></td><td>Problema nel sistema frenante</td><td style="color:#c0392b;font-weight:600;">Stop immediato</td></tr>
+      <tr><td><strong>"Foratura"</strong></td><td>Almeno una ruota forata o molto sgonfia</td><td style="color:#c0392b;font-weight:600;">Stop sicuro</td></tr>
+      <tr><td><strong>"Anomalia sterzo"</strong></td><td>Problema con lo sterzo</td><td style="color:#c0392b;font-weight:600;">Stop immediato</td></tr>
+      <tr><td><strong>"Guasto elettrico"</strong></td><td>Anomalia circuito di carica batteria (alternatore ecc.) o impianto elettrico</td><td style="color:#c0392b;font-weight:600;">Stop immediato</td></tr>
+      <tr><td><strong>"Anomalia motore elettrico"</strong></td><td>Calo di potenza del veicolo — sistema ibrido</td><td style="color:#c0392b;font-weight:600;">Stop immediato</td></tr>
+    </table>
+  </div>
+
+  <div class="section-block">
+    <h2>&#9888; Messaggi di anomalia — Spia arancione</h2>
+    <div class="alert-box warning">
+      Recarsi dalla concessionaria il prima possibile guidando con prudenza. La spia resta accesa.
+    </div>
+    <table class="tpms-table" style="width:100%;margin-top:1rem;">
+      <tr><th style="width:35%">Messaggio</th><th>Significato</th><th style="width:22%">Azione</th></tr>
+      <tr><td><strong>"Veicolo da controllare"</strong></td><td>Anomalia sensore pedali, sistema gestione batteria o sensore livello olio</td><td style="color:#c67c11;font-weight:600;">Concessionaria presto</td></tr>
+      <tr><td><strong>"Airbag da controllare"</strong></td><td>Anomalia sistemi di ritegno — potrebbero non azionarsi in incidente</td><td style="color:#c67c11;font-weight:600;">Concessionaria presto</td></tr>
+      <tr><td><strong>"Controllare antinquinamento"</strong></td><td>Anomalia filtro antiparticolato o sistema antinquinamento</td><td style="color:#c67c11;font-weight:600;">Concessionaria presto</td></tr>
+      <tr><td><strong>"Impianto elettrico da controllare"</strong></td><td>Anomalia sistema di trazione</td><td style="color:#c67c11;font-weight:600;">Concessionaria presto</td></tr>
+    </table>
+  </div>
+
+  <div class="section-block">
+    <h2>&#9889; Messaggi specifici E-Tech Hybrid</h2>
+    <table class="tpms-table" style="width:100%;">
+      <tr><th style="width:35%">Spia / Messaggio</th><th>Significato</th><th style="width:22%">Azione</th></tr>
+      <tr><td><strong>Liquido raffreddamento — rossa</strong></td><td>Temperatura critica motore. Fermarsi, lasciare girare al minimo 1–2 min.</td><td style="color:#c0392b;font-weight:600;">Fermarsi subito</td></tr>
+      <tr><td><strong>Guasto batteria di trazione</strong></td><td>Anomalia funzionamento batteria di trazione ad alta tensione</td><td style="color:#c0392b;font-weight:600;">Concessionaria</td></tr>
+      <tr><td><strong>Guasto elettrotecnico motore</strong></td><td>Guasto al sistema collegato al motore elettrico</td><td style="color:#c0392b;font-weight:600;">Concessionaria</td></tr>
+      <tr><td><strong>Guasto elettrotecnico gruppo</strong></td><td>Guasto all'insieme batteria + motore elettrico</td><td style="color:#c0392b;font-weight:600;">Concessionaria</td></tr>
+      <tr><td><strong>"USCIRE DAL VEICOLO IN SICUREZZA"</strong></td><td>Emergenza critica sistema ibrido. Spegnere, scendere dal veicolo.</td><td style="color:#c0392b;font-weight:600;">Abbandonare</td></tr>
+      <tr><td><strong>Anomalia ABS</strong></td><td>Freni funzionanti ma senza ABS — maggiore distanza di frenata</td><td style="color:#c67c11;font-weight:600;">Concessionaria</td></tr>
+      <tr><td><strong>Vigilanza conducente</strong></td><td>Anomalia sistema monitoraggio attenzione del conducente</td><td style="color:#c67c11;font-weight:600;">Concessionaria</td></tr>
+      <tr><td><strong>"Scheda non rilevata"</strong></td><td>Card Renault uscita dalla zona di rilevamento con motore acceso</td><td style="color:#888;">Portare card</td></tr>
+    </table>
+  </div>
+
+  <div class="section-block">
+    <h2>&#9711; Messaggi TPMS</h2>
+    <table class="tpms-table" style="width:100%;">
+      <tr><th style="width:35%">Messaggio</th><th>Significato</th><th style="width:22%">Azione</th></tr>
+      <tr><td><strong>"Regolare pressione pneumatici"</strong></td><td>Almeno uno pneumatico ha pressione insufficiente</td><td style="color:#c67c11;font-weight:600;">Gonfiare + reset</td></tr>
+      <tr><td><strong>"Foratura"</strong></td><td>Pneumatico forato — spia rossa + segnale acustico</td><td style="color:#c0392b;font-weight:600;">Stop sicuro</td></tr>
+      <tr><td><strong>"Sensori pneumatici — controllare"</strong></td><td>Spia lampeggiante: scorta montata o sensore guasto</td><td style="color:#c67c11;font-weight:600;">Concessionaria</td></tr>
+      <tr><td><strong>"Ref pressione in corso"</strong></td><td>Reinizializzazione TPMS avviata — attendere</td><td style="color:#27ae60;font-weight:600;">Attendere</td></tr>
+      <tr><td><strong>"TPMS indisponibile"</strong></td><td>Ruota di scorta di dimensione diversa montata</td><td style="color:#888;">Informativo</td></tr>
+    </table>
+  </div>
+
+  <div class="alert-box info" style="margin-top:1rem;">
+    <span>&#8505;</span>
+    <div>Fonte: Manuale ufficiale Renault Symbioz (user-manual.renault.com), E-guide Symbioz, Manuale openR link. Per la versione più aggiornata consultare sempre il manuale ufficiale o la concessionaria Renault.</div>
+  </div>
+
+</div>
+</main>
+
+<script>
+const messages = [
+  { name: '"Rischio di anomalia motore"', meaning: 'Guasto iniezione, surriscaldamento motore o problema grave al motore', action: 'Stop immediato — motore spento, non riavviare, chiamare soccorso', type: 'spia-rossa', badge: 'ALLARME', badgeClass: 'badge-red', tags: 'motore iniezione surriscaldamento grave' },
+  { name: '"Guasto all\'impianto freni"', meaning: 'Problema nel sistema frenante del veicolo', action: 'Stop immediato — non riavviare, contattare concessionaria', type: 'spia-rossa', badge: 'ALLARME', badgeClass: 'badge-red', tags: 'freni frenante brake impianto' },
+  { name: '"Foratura" (spia rossa)', meaning: 'Almeno una ruota è forata o gravemente sgonfia', action: 'Fermarsi in sicurezza, non superare 80 km/h, usare kit gonfiaggio', type: 'spia-rossa', badge: 'ALLARME', badgeClass: 'badge-red', tags: 'foratura pneumatico gomma ruota sgonfia tpms' },
+  { name: '"Anomalia sterzo"', meaning: 'Problema rilevato con il sistema sterzo', action: 'Stop immediato — non riavviare, contattare concessionaria', type: 'spia-rossa', badge: 'ALLARME', badgeClass: 'badge-red', tags: 'sterzo guida direzione' },
+  { name: '"Guasto elettrico"', meaning: 'Anomalia nel circuito di carica batteria (alternatore ecc.) o nell\'impianto elettrico generale', action: 'Stop immediato — non riavviare, contattare concessionaria', type: 'spia-rossa', badge: 'ALLARME', badgeClass: 'badge-red', tags: 'elettrico batteria alternatore carica impianto' },
+  { name: '"Anomalia motore elettrico"', meaning: 'Calo di potenza del veicolo — sistema ibrido E-Tech', action: 'Stop immediato — non riavviare, contattare concessionaria', type: 'spia-rossa', badge: 'ALLARME', badgeClass: 'badge-red', tags: 'motore elettrico ibrido etech potenza' },
+  { name: '"Veicolo da controllare"', meaning: 'Anomalia di un sensore dei pedali, del sistema gestione batteria o del sensore livello olio', action: 'Recarsi dalla concessionaria il prima possibile guidando con prudenza', type: 'spia-arancione', badge: 'ANOMALIA', badgeClass: 'badge-orange', tags: 'pedali batteria olio sensore veicolo controllare' },
+  { name: '"Airbag da controllare"', meaning: 'Anomalia dei sistemi di ritegno complementari alle cinture — in caso di incidente potrebbero non azionarsi', action: 'Recarsi dalla concessionaria il prima possibile', type: 'spia-arancione', badge: 'ANOMALIA', badgeClass: 'badge-orange', tags: 'airbag cintura sicurezza ritegno' },
+  { name: '"Controllare antinquinamento"', meaning: 'Anomalia nel sistema antinquinamento o nel filtro antiparticolato del veicolo', action: 'Recarsi dalla concessionaria il prima possibile guidando con prudenza', type: 'spia-arancione', badge: 'ANOMALIA', badgeClass: 'badge-orange', tags: 'antinquinamento filtro antiparticolato fap dpf inquinamento' },
+  { name: '"Impianto elettrico da controllare"', meaning: 'Anomalia nel sistema di trazione elettrica', action: 'Recarsi dalla concessionaria il prima possibile guidando con prudenza', type: 'spia-arancione', badge: 'ANOMALIA', badgeClass: 'badge-orange', tags: 'impianto elettrico trazione controllare' },
+  { name: 'Guasto batteria di trazione', meaning: 'Anomalia nel funzionamento della batteria ad alta tensione del sistema ibrido', action: 'Recarsi rapidamente dalla concessionaria', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'batteria trazione alta tensione ibrido etech' },
+  { name: 'Guasto elettrotecnico — motore elettrico', meaning: 'Guasto al sistema elettrotecnico collegato al motore elettrico', action: 'Recarsi rapidamente dalla concessionaria', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'elettrotecnico motore elettrico ibrido' },
+  { name: 'Guasto elettrotecnico — gruppo elettrico', meaning: 'Guasto all\'insieme batteria di trazione e motore elettrico', action: 'Recarsi rapidamente dalla concessionaria', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'elettrotecnico gruppo elettrico batteria motore ibrido' },
+  { name: 'Temperatura gruppo elettrico — critica', meaning: 'Temperatura eccessiva del sistema ibrido (batteria + motore). Spia + segnale acustico.', action: 'Fermarsi, spegnere il motore, attendere raffreddamento', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'temperatura calore surriscaldamento batteria motore ibrido' },
+  { name: '"USCIRE DAL VEICOLO IN SICUREZZA"', meaning: 'Emergenza critica del sistema ibrido ad alta tensione. Spia rossa + segnale acustico.', action: 'Spegnere immediatamente, scendere dal veicolo, non riavviare, chiamare soccorso', type: 'spia-rossa', badge: 'EMERGENZA', badgeClass: 'badge-red', tags: 'uscire veicolo emergenza alta tensione pericolo incendio' },
+  { name: 'Spia liquido raffreddamento — rossa', meaning: 'Temperatura liquido raffreddamento critica. Si accende rossa durante la guida.', action: 'Fermarsi, lasciare girare al minimo 1–2 min. Se non scende: motore spento.', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'liquido raffreddamento temperatura motore radiatore' },
+  { name: 'Anomalia ABS', meaning: 'Guasto al sistema antibloccaggio. Frenata normale ma senza ABS — distanza di frenata aumentata.', action: 'Recarsi rapidamente dalla concessionaria. Guidare con prudenza.', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'abs antibloccaggio frenata freni' },
+  { name: 'Vigilanza conducente — anomalia', meaning: 'Anomalia del sistema di monitoraggio dell\'attenzione del conducente', action: 'Recarsi dalla concessionaria al più presto', type: 'spia-ibrido', badge: 'IBRIDO', badgeClass: 'badge-purple', tags: 'vigilanza conducente attenzione stanchezza' },
+  { name: '"Scheda non rilevata"', meaning: 'La card Renault non è nella zona di rilevamento mentre il motore è acceso', action: 'Assicurarsi di avere la card con sé a bordo del veicolo', type: 'spia-ibrido', badge: 'SISTEMA', badgeClass: 'badge-purple', tags: 'card scheda chiave keycard rilevamento' },
+  { name: '"Regolare pressione pneumatici"', meaning: 'Almeno uno pneumatico ha pressione insufficiente', action: 'Gonfiare tutte e 4 le ruote a freddo, poi reinizializzare TPMS', type: 'spia-tpms', badge: 'TPMS', badgeClass: 'badge-blue', tags: 'pressione pneumatici gomme gonfiare tpms' },
+  { name: '"Foratura" (TPMS)', meaning: 'Rilevazione foratura — spia rossa lampeggiante + segnale acustico', action: 'Stop sicuro, non superare 80 km/h, usare kit gonfiaggio, max 200 km', type: 'spia-tpms', badge: 'TPMS', badgeClass: 'badge-blue', tags: 'foratura pneumatico gomma tpms ruota' },
+  { name: '"Sensori pneumatici — controllare"', meaning: 'Spia lampeggiante: ruota di scorta montata oppure sensore TPMS guasto', action: 'Contattare la concessionaria', type: 'spia-tpms', badge: 'TPMS', badgeClass: 'badge-blue', tags: 'sensori pneumatici tpms scorta guasto' },
+  { name: '"TPMS indisponibile"', meaning: 'Ruota di scorta di dimensione diversa montata — sistema non può operare', action: 'Informativo — sostituire con ruota normale appena possibile', type: 'spia-tpms', badge: 'TPMS', badgeClass: 'badge-blue', tags: 'tpms indisponibile scorta dimensione' },
+];
+
+function renderMessages(list) {
+  const container = document.getElementById('msgList');
+  const noRes = document.getElementById('noResults');
+  const count = document.getElementById('resultsCount');
+  if (list.length === 0) {
+    container.innerHTML = '';
+    noRes.style.display = 'block';
+    count.textContent = 'Nessun risultato';
+    return;
+  }
+  noRes.style.display = 'none';
+  count.textContent = list.length + ' messaggio' + (list.length !== 1 ? 'i' : '') + (list.length < messages.length ? ' trovati' : ' totali');
+  container.innerHTML = list.map(m => `
+    <div class="msg-card ${m.type}">
+      <div class="msg-top">
+        <div class="msg-name">${m.name}</div>
+        <span class="badge ${m.badgeClass}">${m.badge}</span>
+      </div>
+      <div class="msg-meaning">${m.meaning}</div>
+      <div class="msg-action">&#8594; ${m.action}</div>
+    </div>
+  `).join('');
+}
+
+function filterMessages() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  if (!q) { renderMessages(messages); return; }
+  const filtered = messages.filter(m =>
+    m.name.toLowerCase().includes(q) ||
+    m.meaning.toLowerCase().includes(q) ||
+    m.action.toLowerCase().includes(q) ||
+    m.tags.toLowerCase().includes(q) ||
+    m.badge.toLowerCase().includes(q)
+  );
+  renderMessages(filtered);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'ricerca') renderMessages(messages);
+}
+
+renderMessages(messages);
+</script>
+</body>
+</html>
